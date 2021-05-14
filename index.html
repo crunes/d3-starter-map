@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        .chart-container {
+            max-width: 1050px;
+            /* border: 3px solid red; */
+            margin: 0 auto;
+            /* auto centers the div */
+            font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+        }
+
+        svg {
+            /* border: 2px solid purple; */
+            overflow: visible;
+        }
+
+
+        h1 {
+            /* border: 2px solid green; */
+        }
+
+        .pop-up {
+            position: absolute;
+            border: 1px solid black;
+            border-radius: 1px;
+            line-height: 1.2;
+            width: 200px;
+            pointer-events: none;
+            background-color: white;
+            padding: 10px;
+            opacity: 0;
+        }
+
+    </style>
+
+</head>
+
+<body>
+    <div class="chart-container">
+        <h1 class="headline">
+          Children living under the federal poverty line, by county
+        </h1>
+
+        <br>
+
+        <svg width="1050px" height="500px">
+
+        </svg>
+
+        <div class="pop-up"></div>
+    </div>
+</body>
+
+
+<!-- we're using d3 version 6 (the latest version) for all out work -->
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<!-- load topojson script -->
+<script src="https://unpkg.com/topojson@3"></script>
+
+<script>
+    console.log({ d3 })
+    console.log({ topojson })
+
+    Promise.all([
+        d3.json('state_bubbles_unproj.json'),
+    ])
+        .then(ready)
+        .catch((err) => {
+            console.log(err);
+        });
+
+    function ready(res) {
+        console.log(res[0])
+        let raw = res[0]
+
+        let county = topojson.feature(raw, raw.objects.county);
+        let state = topojson.feature(raw, raw.objects.state);
+
+        let popup = d3.select(".pop-up");
+
+        let width = 1050;
+        let height = 500;
+
+        console.log(county, state)
+
+        let svg = d3.select("body").select("svg")
+
+        let myProjection = d3.geoAlbersUsa()
+            .fitSize([width, height], state)
+
+        //path function
+        let path = d3.geoPath()
+            .projection(myProjection)
+
+        svg
+            .selectAll(".states")
+            .data(state.features)
+            .join("path")
+            .attr("d", path)
+            .style("fill", "#ccc")
+            .style("stroke", "#eee")
+            .style("pointer-events", "none")
+
+        let bubbles = svg
+            .selectAll(".counties")
+            .data(county.features)
+            .join("circle")
+            .attr("class", d => "points p-" + d.properties.GEOID)
+            .attr("r", d => d.properties.resized)
+            .attr("cx", d => {
+                return path.centroid(d)[0]
+            })
+            .attr("cy", d => {
+                return path.centroid(d)[1]
+            })
+            .style("fill", "#orange")
+            .style("stroke", "#ffffff")
+            .style("stroke-width", .2)
+
+        // Pop-ups!
+        bubbles.on("mouseover", (event, d) => {
+          bubbles
+            .style("stroke-width", .2)
+            .raise()
+
+          bubbles.select(".p-" + d.properties.GEOID)
+            .style("stroke-width", 1)
+            .raise()
+
+          let lang = "In " + d.properties.Geo_QName + ", " + d3.format(",")(d.properties.pop_18_in_poverty)
+          lang += " children live under the federal poverty line."
+
+          popup
+            .style("opacity", 1)
+            .style("left", (event.x - 100) + "px")
+            .style("top", (event.y - 100) + "px")
+            .html(lang)
+
+        })
+
+        bubbles.on("mouseout", (event, d) => {
+          bubbles
+            .style("stroke-width", .2)
+
+          popup
+            .style("opacity", 0)
+        })
+
+    }
+
+
+
+
+
+
+
+
+</script>
